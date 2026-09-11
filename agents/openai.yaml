@@ -1,0 +1,7 @@
+interface:
+  display_name: "Stock Forensics"
+  short_description: "Trace the events and metrics behind stock moves"
+  default_prompt: "Use $forensics to identify what historically moved this stock and produce an evidence-labeled report."
+
+policy:
+  allow_implicit_invocation: true
