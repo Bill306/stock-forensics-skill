@@ -1,269 +1,78 @@
 ---
 name: forensics
-description: Stock forensics — reverse-engineer what has historically moved a stock's price and valuation. Use whenever the user asks to analyze a stock, understand why it moved, research price drivers, do equity due diligence, or asks "what happened to [ticker]?" Also applies when the user provides sell-side reports, earnings data, or asks about key metrics. Even a casual "look into [ticker]" or "analyze [company]" should trigger this skill.
+description: Investigate historical stock-price drivers, earnings reactions, or information revealed in a call/transcript. Use when the user asks why a stock moved, which metrics were priced, or whether a disclosure contributed to a move. Supports evidence-led attribution and falsifiable current debates.
 metadata:
   author: Bill306
-  version: "1.0.0"
+  version: "1.3.0"
 ---
 
 # Forensics — Know the Stock
 
-The goal: **Identify the major drivers of a stock's price.**
+Identify what information changed expectations, how it could change earnings or valuation, and whether the price reaction supports that explanation. Historical drivers are hypotheses to re-test as the company changes stage, not predictions.
 
-The optional local web app requires Python 3.9 or newer. Research works best when web search and financial-data tools are available.
+## Choose the task
 
-Understanding what drove a stock historically tells you what will drive it going forward. This is not about predicting — it's about reverse-engineering past price action to find the catalysts that actually matter.
+- **Price drivers:** start with the chart, then test catalysts against the full event set.
+- **Earnings reaction:** compare actual results, guidance and key metrics with pre-publication expectations.
+- **Call/transcript attribution:** read [references/transcript-forensics.md](references/transcript-forensics.md). Analyze supplied text, PDF or subtitles directly. Route media through available transcript tools, retaining original evidence locations; do not duplicate ASR engines or claim unavailable transcripts were read.
+- **Moves with news or market context:** read [references/news-and-market-context.md](references/news-and-market-context.md). Compare broad-market and relevant industry benchmarks, then build a dated company/news event timeline before assigning a company-specific explanation.
+- **Current debate:** track changes in questions and disclosed metrics, then identify the disagreement, next observable evidence and falsifier. Use available quarters and disclose coverage; a fixed quarter count does not guarantee understanding.
 
-## Rules of Thumb
+For broad company research, apply this method to the requested price-driver component. Accounting-quality/fraud investigations need their own accounting procedures; price attribution does not establish fraud.
 
-These principles guide every forensics analysis:
+## Choose the analysis period
 
-1. **Start with the price chart.** What moved the stock price in the past? Let the chart tell you where to dig.
-2. **Find the metrics investors care about.** Every stock has 1-2 key metrics — find them.
-3. **Read sell-side reports for facts, not views.** Extract data points, consensus estimates, and industry facts. Ignore their ratings and price targets.
-4. **Read news.** Map major events to price moves.
-5. **Focus on big stories, not small volatilities.** A 2% daily move is noise. A 30% drawdown is signal.
-6. **Identify the company's stage.** The stage determines which metrics matter and what drives the stock.
-7. **Each market has its own characteristics — don't mix them up.** US guidance culture, Japan governance reform, HK dividend focus, China policy dominance — these are different games.
+Honor a user-specified lookback or exact start/end dates. If none are given, use the five years ending on the most recent completed exchange session and state the actual start and end sessions. Offer a shorter or longer lookback (such as 1, 2, 3 or 10 years), all available history, or custom dates when period choice would help; do not block a useful first pass while waiting for a preference. Retrieve the preceding common trading-session close when needed to calculate the first in-window return. Apply the selected dates consistently to stock prices, benchmarks, move screening and the news/event census. Historical earnings tables may focus on the most recent 6–8 available quarters, but disclose that narrower fundamental sample.
 
-## The Forensics Process
+## Evidence and timing
 
-### Step 1: Map the Price History
+Prefer company, exchange and regulator disclosures for facts. Read full original news and source sell-side data, separating estimates, channel-check claims and opinions. Ratings/targets can themselves be candidate events; they are not proof of value or causation. yfinance is an unofficial data adapter.
 
-Pull the stock's price chart (1–2 years minimum) and identify the **big moves** — the 10%+ swings, not daily noise. For each major move, ask: what happened here?
+Record each source's URL/local path, publication time, data/reporting period, retrieval date and evidence locator. Separate reporting-period end, announcement and call times. Use the exchange timezone and actual sessions. Preserve currency, price-adjustment basis, EPS/accounting basis, metric units and historical consensus cutoff. Missing fields stay explicit; never substitute today's estimates for historical expectations.
 
-Data sources to use:
-- **Exchange, regulator, and company disclosures** for authoritative event and financial facts
-- **yfinance** as a convenient, unofficial OHLCV and metadata adapter
-- **TradingView MCP** for technical context and current market data, if available
-- **Web search** for original news and disclosures around key dates
+## Investigation
 
-Cross-verify material price moves and corporate actions when possible. Record the source URL, publication date, data period, retrieval date, currency, adjustment basis, and unresolved gaps. Discrepancies may indicate stock splits, currency differences, time-zone boundaries, or data errors — investigate and note the reason.
+1. **Map prices and coverage.** Use the requested period; absent a period, use five years through the latest completed exchange session. State exact first/last dates and price-source coverage. Screen large moves against the stock's own history, a broad-market benchmark and a relevant industry/peer benchmark where available. A 10% threshold is optional, not universal. Retain unexplained moves.
+2. **Build a dated event census.** Include company releases/filings, earnings calls, material company news, relevant industry and macro news, and sell-side actions. Record when each item first became public, its source, and whether it repeats, updates or supersedes an earlier disclosure. Include quiet earnings/events and comparison dates; disclose source gaps.
+3. **Test metric candidates.** Use sector knowledge, calls and company stage. For each candidate retain supporting events, contradictory cases, stage applicability and a falsifier. Rank the best-supported one or two metrics only after this check; leave rankings unresolved when evidence is weak.
+4. **Compare prior expectations.** For 6–8 quarters when available, tabulate period, announcement time, metric actual, prior expectation/source/cutoff, surprise, revenue, comparable EPS, guidance delta, stock and benchmark reactions. Show absolute gaps and denominator limits for zero/near-zero or negative estimates. Growth-rate surprises use percentage points. Missing consensus stays unavailable.
+5. **Calculate reactions.** Read [references/event-windows.md](references/event-windows.md) for timing, 1/5/20-session windows, broad/industry comparisons, exact benchmark endpoints and missing-data rules. EPS surprise is never a stock-return field. Longer windows collect other information and do not themselves increase causal confidence.
+6. **Attribute conservatively.** Test shared market/industry moves before company-specific explanations. Link each candidate to its publication time, novelty, prior expectation, earnings/valuation mechanism and observed reaction. Review company, macro and industry news, peers, FX, policy, concurrent disclosures and anticipated information; explain conflicting signs. A broad or sector ETF is a return benchmark, not proof of investor flows. Call flows only when separate flow data support them. Distinguish facts from inference.
+7. **State the debate.** Give evidence on both sides, a verifiable next observation and what would disprove each interpretation. National market characteristics and management tone are hypotheses, not default explanations.
 
-Focus on **big stories, not small volatilities**. A 2% daily move is noise. A 30% drawdown over 3 months is signal.
+## Attribution grades
 
-### Step 2: Identify the Key Metrics
+| Grade | Meaning |
+|---|---|
+| `supported_driver` | Located evidence of new information, prior expectation, known timing, mechanism, benchmark-comparable reaction and reviewed competing explanations support contribution. This does not prove causality or quantify a share of the move. |
+| `plausible_contributor` | Evidence and mechanism support a plausible contribution, but timing, expectations or competing explanations limit confidence. |
+| `coincident_only` | Event and move overlap without a supported information/expectation/mechanism link. |
+| `insufficient_evidence` | Essential evidence, usable prices or timing are missing. |
 
-Every stock has 1–2 metrics that the market cares about most. Finding these is the whole game — and the key metrics often change as the company moves between stages (e.g. a company in crisis: "are they still losing money?" vs. the same company in recovery: "how fast is profit growing?").
+Unknown timing caps the grade below `supported_driver`. Transcript-only work can deliver factor hypotheses with missing-data disclosures; never fabricate returns to complete a table.
 
-**How to identify them:**
-- Look at what metrics correlate with the biggest price moves
-- Check what sell-side analysts highlight in their report titles and summaries
-- Look at earnings call Q&A — what do investors keep asking about?
-**Examples by sector:**
-- Retail: Same-store sales growth (SSSG), guidance
-- SaaS: Net revenue retention (NRR), ARR growth, Rule of 40
-- Banks: Net interest margin (NIM), credit quality
-- Semiconductors: Inventory levels, design wins, ASP trends
-- E-commerce: GMV growth, take rate, user growth
-- Restaurants (JP): Like-for-like (LFL) sales, customer count, overseas mix
+## Deliverables and helpers
 
-### Step 3: Build the Earnings Forensics Table
+Match the requested scope. A full report includes coverage/cutoff, major moves and the event census, an earnings/expectations table, driver hypotheses with supporting and contradictory cases, current debate/falsifiers, and sources/limitations. Charts are useful when requested or when they clarify the evidence, rather than a mandatory output for every question.
 
-Pull 6–8 quarters of data and construct a table:
+For repeatable transcript work, read [references/evidence-schema.md](references/evidence-schema.md). Save `transcript-factors.json` plus a human-readable report. The helper checks consistency; it does not perform semantic source review or generate LLM conclusions:
 
-| | Q1 | Q2 | Q3 | Q4 | Q1 | Q2 | Q3 | Q4 |
-|---|---|---|---|---|---|---|---|---|
-| **Key Metric (actual)** | | | | | | | | |
-| **Key Metric (consensus)** | | | | | | | | |
-| **Surprise %** | | | | | | | | |
-| **Revenue** | | | | | | | | |
-| **EPS (adjusted)** | | | | | | | | |
-| **EPS Surprise %** | | | | | | | | |
-| **Guidance (if applicable)** | | | | | | | | |
-| **Stock move post-earnings** | | | | | | | | |
-
-The surprise column is critical — it shows what the market didn't expect.
-
-### Step 4: Read Sell-Side Reports (Facts Only)
-
-When reading sell-side research, extract **facts**, not opinions:
-- Consensus estimates and estimate revisions
-- Industry data points and channel checks
-- Management commentary and guidance specifics
-- Competitive dynamics and market share data
-
-Ignore their buy/sell ratings, price targets, and subjective views. The facts they compile are valuable; their conclusions are not.
-
-If the user provides PDF reports, use whatever PDF extraction tools are available in the environment to parse them.
-
-### Step 5: Generate the Interactive Forensic Price Chart
-
-This is a key deliverable. Generate an interactive HTML chart that overlays price history with annotated catalyst events. Use `scripts/template_chart.html` as the reference template.
-
-**Chart structure:**
-- **Price line**: Weekly OHLCV data from yfinance, displayed as area + line chart
-- **Event markers**: Color-coded dots on the price line, each representing a catalyst
-- **Events panel**: Scrollable sidebar listing all events with date, price, move %, and description
-- **Legend + filters**: Toggle event categories on/off
-- **Range selector**: 1Y / 3Y / 5Y / ALL views
-- **Summary stats**: Current price, period return, TTM return, event counts
-
-**Event categories (color-coded):**
-
-| Category | Color | What it covers |
-|----------|-------|---------------|
-| `scandal` | Red (#d4574a) | Governance issues, fraud, regulatory actions, PR crises |
-| `earnings` | Amber (#d4a93e) | Quarterly results, guidance changes, annual results |
-| `corporate` | Green (#7fa878) | M&A, IPO, management changes, restructuring, stock splits |
-| `sellside` | Blue (#6b8fb8) | Analyst initiations, upgrades/downgrades, target changes |
-| `narrative` | Purple (#a88bb3) | Macro themes, sector rotation, thematic shifts |
-
-**How to build the chart:**
-
-1. Read `scripts/template_chart.html` for the full HTML/CSS/JS structure
-2. Replace the `priceData` array with weekly OHLCV data for the target stock
-3. Replace the `events` array with researched catalyst events
-4. Update the header (ticker, company name, subtitle)
-5. Update summary stats (current price, returns, event counts)
-6. Save the output HTML file to the user's working directory or preferred output location
-
-The bundled local app is optional. Install its dependencies explicitly with `python3 -m pip install -r requirements.txt`; the app must never install packages on import. Run `python3 scripts/server.py` from the repository root. It binds to `127.0.0.1:3457` and writes to `./forensics-output` by default. Override these with `FORENSICS_HOST`, `FORENSICS_PORT`, and `FORENSICS_OUTPUT_DIR` only when the user intends to change the exposure or location.
-
-**Event data format:**
-```javascript
-{
-  date: 'YYYY-MM-DD',
-  cat: 'earnings',          // scandal | earnings | corporate | sellside | narrative
-  title: 'Q1 FY25 — Rev beat +8%',
-  px: 150.25,
-  mv: '+12%',               // Price move (1-day, multi-day, or YTD)
-  mvDir: 'up',              // 'up' or 'down'
-  desc: 'Revenue $4.2B vs $3.9B consensus...'
-}
+```bash
+python3 scripts/transcript_forensics.py validate --input transcript-factors.json
+python3 scripts/transcript_forensics.py price-window --prices daily-prices.json --benchmark daily-benchmark.json --event-date 2026-09-30 --timing after-close
+python3 scripts/transcript_forensics.py export-events --input transcript-factors.json --prices daily-prices.json --output chart-events.json
 ```
 
-The chart should tell the complete story of the stock — someone should be able to look at it and immediately understand what drove every major price move.
+Keep supplied/private documents outside public Skill files. CLI output creates new files and refuses to overwrite existing paths.
 
-### Step 6: Synthesize — The Forensics Report
+## Chart and optional app
 
-Produce a structured text report alongside the chart:
+Expose sources/locators, timing, uncertainty and labeled return windows in chart annotations. Keep unresolved moves. Verify actual interactions before describing a chart as verified. Compare raw and benchmark returns on matching endpoints and adjustment conventions.
 
-```
-# [TICKER] — Forensics Report
+The optional app requires Python 3.9+, Flask and yfinance. Explicitly install `requirements.txt` when needed, then run `python3 scripts/server.py` from the repo root. Defaults: `127.0.0.1:3457`, output `./forensics-output`, and a five-year chart view. The chart lets users select other ranges, including 1, 2, 3 or 10 years and all available history. It fetches daily adjusted closes, provider announcement dates, analyst changes and splits, reports source gaps and can add validated evidence through the `/api/generate` JSON `evidence` field. Provider events remain unverified attribution. It does not collect company or market news, industry benchmarks or fund-flow data; research and attach those sources separately.
 
-## Price History Summary
-- [Date range analyzed]
-- [Major moves identified with dates and magnitudes]
+`scripts/template_chart.html` is a legacy illustration with historical sample data, not a general renderer. For arbitrary tickers use the app renderer or generate a chart from validated evidence and supplied prices. Examples are preserved in [references/legacy-examples.md](references/legacy-examples.md); verify claims before reuse.
 
-## Key Metrics That Move the Stock
-- Primary: [metric] — because [evidence from price correlation]
-- Secondary: [metric] — because [evidence]
+## Verification
 
-## Earnings Forensics Table
-[The table from Step 4]
-
-## What the Market Cares About Right Now
-- [Current narrative / theme]
-- [Upcoming catalysts with dates]
-
-## Market-Specific Notes
-- [Any characteristics specific to this stock's market]
-```
-
-### Step 7: Current Debate — What Is the Market Arguing About Right Now?
-
-Forensics tells you what *has* driven the stock. Current Debate tells you what *will* drive it next — the unresolved questions that analysts, investors, and management are wrestling with right now.
-
-**It takes ~8 quarters to truly know a stock.** Reading one or two earnings calls gives you a snapshot. Reading 8–12 gives you the arc — how the narrative shifted, which concerns faded, which ones persisted, and what new ones emerged.
-
-**How to identify the current debate:**
-
-1. **Read the past 8–12 quarterly earnings call transcripts.** Focus on:
-   - **Analyst Q&A section** — this is where the real concerns surface. What questions keep coming up? What new questions appeared recently?
-   - **Management tone shifts** — are they getting more defensive on a topic? More confident? Evasive?
-   - **The marginal change in questions** — if analysts asked about margins for 6 quarters straight, then suddenly shift to asking about market share, that's a signal. The shift in focus *is* the debate moving.
-
-2. **Cross-reference with your forensics.** Your price history and key metrics work tells you what drove the stock before. The current debate tells you what could drive it next. Where do they overlap? Where do they diverge?
-
-3. **Layer in sell-side reports and common sense.** Sell-side research often frames the debate explicitly ("the bull case is X, the bear case is Y"). Combine this with your own judgment — does the debate make sense given what you found in forensics?
-
-4. **Distill to the true debate.** Strip away noise and find the 1–2 questions that actually matter for the stock price. Not "will revenue grow?" but the specific, falsifiable question that bulls and bears disagree on.
-
-**Output format:**
-
-```
-## Current Debate — [TICKER]
-
-### The True Debate
-[1-2 sentences: the core question bulls and bears disagree on]
-
-### Earnings Call Evolution (past 8 quarters)
-| Quarter | Dominant analyst questions | Management tone | New concerns |
-|---|---|---|---|
-| [Q] | [topics] | [confident/defensive/evasive] | [any new issues raised] |
-
-### Bull vs Bear
-- Bull case: [what bulls believe, with evidence]
-- Bear case: [what bears believe, with evidence]
-- What would resolve it: [specific data point or event]
-```
-
-## Market-Specific Characteristics
-
-Each market has its own quirks. Don't apply one market's logic to another.
-
-**US Stocks:**
-- Guidance is extremely important — often matters more than the actual quarter
-- Pre-market earnings moves are driven by guidance + key metric surprise
-- Sell-side consensus is well-established; surprise vs consensus drives price
-
-**Japan Stocks:**
-- Corporate governance reforms (TSE PBR >1 push) drive re-ratings
-- Cross-shareholding unwinds create supply pressure
-- Shareholder return policy (buybacks, dividends) increasingly matters
-- Overseas revenue mix as a growth narrative
-
-**Hong Kong Stocks:**
-- Dividend yield and payout ratio matter more
-- Southbound flow (mainland money) is a major driver
-- Less sell-side coverage → more information asymmetry
-
-**A-Shares (China):**
-- Policy and regulatory signals dominate
-- Retail sentiment and momentum matter more
-- Different accounting standards and disclosure norms
-
-**European Stocks:**
-- Organic growth vs FX impact distinction matters
-- Regulatory environment varies by country
-
-## Examples
-
-### FIVE (Five Below, US)
-- **Key metric**: SSSG — THE metric for US discount retail
-- SSSG went negative (-4% to -5%) → stock crashed to ~$52
-- SSSG recovered with big EPS surprises (+278%) → stock rallied back
-- **Lesson**: Guidance + SSSG surprise = price driver
-- **Current Debate**: Can comps stay positive? Can revenue accelerate? Can margins keep expanding? → The *true* debate is comps — because without positive SSSG, revenue growth is just new store openings and margin expansion hits a ceiling. Comps are the gatekeeper.
-
-### FLC / 3563.T (Food & Life Companies, Japan)
-- **Key metric**: Like-for-like (LFL) monthly sales, overseas revenue mix
-- Scandal cluster (2022–2023): false advertising → sushi terrorism → -30% from peak
-- Recovery driven by: decisive crisis response, 40th anniversary campaigns, overseas expansion
-- FY25 breakout: OP +58.9%, stock nearly doubled
-- **Lesson**: For JP consumer stocks, governance events (scandal/reform) can dominate fundamentals for quarters
-
-### Samsung Electronics (005930.KS, Korea)
-- **Key metric**: Memory division operating profit, HBM qualification status
-- Trough (2023): Memory losing money → stock bottomed at ~53,000
-- Recovery (2024): Memory returns to profit, EPS surprise +94% → rally begins
-- Setback (mid-2024): HBM3E fails Nvidia qualification → stock -40% from peak
-- Breakout (2025–2026): HBM3E qualified, DRAM ASP +30%, Q1 2026 OP 57.2T → stock 6x from trough
-- **Lesson**: The key metric shifted at each stage — from "are they losing money?" to "how fast is profit recovering?" to "can they qualify HBM?" Know what stage the company is in and what the market cares about *right now*.
-
-## Practical Tips
-
-- Start with the price chart. Always. Let the chart tell you where to dig deeper.
-- Cross-reference multiple sources — don't rely on a single sell-side report.
-- Time your analysis around earnings dates — that's when the most information is revealed.
-- The interactive chart is the primary deliverable — it should be self-contained and tell the full story.
-
-## Boundaries and Verification
-
-- This Skill supports research and explanation, not personalized investment advice, order placement, or portfolio action.
-- Treat yfinance and search snippets as discovery layers. Prefer original filings, exchange notices, company releases, and full source pages for claims that drive the conclusion.
-- Do not invent consensus values, price reactions, catalyst dates, current debates, or chart functionality. Mark missing fields as unavailable.
-- Separate event date, publication date, financial reporting period, and retrieval date.
-- Before calling an HTML chart interactive, open it and verify that the data arrays initialize and the filters, range buttons, event list, and chart markers respond.
-- The optional Flask app is for trusted local use. It has no authentication and should not be exposed publicly without an independent security review and access controls.
+Run `scripts/validate.sh` after code changes. Check EPS beats with falling prices, stock/benchmark moves together, unknown timing, missing expectations and out-of-coverage windows. Missing fields must stay missing, ineligible grades must fail validation, and no future close may substitute for an earlier baseline. Passing tests verifies mechanics, not a live provider or a research conclusion.

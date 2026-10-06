@@ -13,6 +13,8 @@ Price charts show when a stock moved, but not which expectations changed or whic
 Stock Forensics starts from major price moves and works backward to the evidence. It helps an agent:
 
 - map material price swings to dated catalysts;
+- separate broad-market and industry moves from company-specific news candidates;
+- preserve news timestamps and link later updates to earlier disclosures;
 - identify the one or two operating metrics investors repeatedly price;
 - compare reported results with contemporaneous expectations;
 - trace how analyst questions and management tone evolved across earnings calls;
@@ -20,6 +22,23 @@ Stock Forensics starts from major price moves and works backward to the evidence
 - distinguish company facts, market data, analytical inference, and unresolved gaps.
 
 The repository also includes an optional local Flask app that pulls Yahoo Finance data through `yfinance` and generates a basic chart. That app is a convenience layer, not a substitute for original filings, exchange notices, earnings calls, or source-checked research.
+
+## Local v1.3.0 update
+
+The local upgrade adds transcript evidence/expectation checks, four attribution grades, counterexamples, explicit company/industry/news event types and first-disclosure links, plus 1/5/20-session comparison against multiple named benchmarks. The chart app uses daily adjusted closes and provider announcement dates instead of fiscal-quarter dates, keeps EPS surprise separate from price returns, and displays source gaps. News, industry benchmarks and actual fund-flow evidence still need to be researched and supplied separately; ETF returns are not flows. This local version adds a five-year default period and selectable chart windows. GitHub publication is a separate step.
+
+The transcript helper validates analyst-authored JSON; it does not transcribe media, read calls, verify source truth or automatically identify price drivers.
+
+```bash
+python3 scripts/transcript_forensics.py validate --input examples/transcript-only.json
+python3 scripts/transcript_forensics.py price-window --prices examples/daily-prices.json --benchmark examples/daily-benchmark.json --event-date 2026-09-30 --timing after-close
+python3 scripts/transcript_forensics.py price-window --prices examples/daily-prices.json --event-date 2026-09-30 --timing after-close --benchmark QQQ=examples/daily-benchmark.json --benchmark XLK=examples/daily-industry-benchmark.json
+python3 scripts/transcript_forensics.py export-events --input examples/transcript-only.json --prices examples/daily-prices.json
+```
+
+Examples are fictional. JSON `--output` refuses to overwrite existing files. See [evidence contract](references/evidence-schema.md), [window conventions](references/event-windows.md), [call workflow](references/transcript-forensics.md) and [news/market-context workflow](references/news-and-market-context.md). A valid JSON record verifies consistency and attribution eligibility, not the truth or causality of a conclusion.
+
+To include reviewed annotations in the app, send `{"symbol":"TICKER","evidence":{...}}` to `/api/generate`. Evidence must match the ticker and validate first. The chart exposes timing, grades and source/quote locations. Provider consensus without a verified cutoff cannot support the strongest attribution grade.
 
 ## Install the Skill
 
@@ -33,16 +52,18 @@ Then copy or symlink the repository folder so that the agent can discover its ro
 
 ## Usage
 
+If a request gives no analysis period, the Skill defaults to the five years ending on the most recent completed exchange session. Users can request another lookback or exact start/end dates. The chart defaults to 5Y and offers 1Y, 2Y, 3Y, 10Y and all available history.
+
 Invoke it with a request such as:
 
 ```text
-Use $forensics to analyze the last three years of NVDA price drivers.
+Use $forensics to analyze NVDA price drivers. Use the default five-year window unless I specify another period.
 Separate verified catalysts from inference, identify the key metrics, and cite original sources.
 ```
 
 ## Input and output
 
-Given a ticker, time range, and available source material, the Skill asks the agent to produce:
+Given a ticker, an optional time range, and available source material, the Skill asks the agent to produce:
 
 1. a price-history summary focused on material moves;
 2. an earnings-forensics table;
@@ -101,7 +122,7 @@ The app has no authentication. Keep it on localhost unless you independently add
 ./scripts/validate.sh
 ```
 
-The validation script compiles the Python server and runs unit tests for ticker validation, output-path containment, and HTML/script escaping. It does not prove that Yahoo Finance is available or that a research conclusion is correct.
+The validation script compiles the helpers/server and tests safety, session alignment, EPS/return separation, benchmark endpoints, missing-data handling, evidence eligibility and the chart-generation API with synthetic data. It does not prove that Yahoo Finance is available or that a research conclusion is correct.
 
 ## Data and research limitations
 
@@ -118,9 +139,13 @@ The validation script compiles the Python server and runs unit tests for ticker 
 SKILL.md                    Agent instructions
 agents/openai.yaml          UI metadata and invocation policy
 scripts/server.py           Optional local chart app
+scripts/forensics_core.py    Evidence checks and deterministic return windows
+scripts/transcript_forensics.py JSON CLI (no data downloads or LLM calls)
 scripts/template_chart.html Reference chart template
 scripts/validate.sh         Local validation entry point
-tests/test_server.py        Safety-focused unit tests
+references/                 Call workflow, evidence contract, return conventions
+examples/                   Fictional input fixtures
+tests/                      Safety and research-mechanics regression tests
 ```
 
 ## Security

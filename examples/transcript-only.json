@@ -1,0 +1,49 @@
+{
+  "ticker": "SYNTH",
+  "analysis_as_of": "2026-10-06T12:00:00+08:00",
+  "sources": [
+    {
+      "id": "call",
+      "url_or_path": "synthetic://example-call",
+      "published_at": "2026-09-30T16:30:00-04:00",
+      "retrieved_at": "2026-10-06T12:00:00+08:00",
+      "data_period": "FY26 Q3"
+    }
+  ],
+  "events": [
+    {
+      "id": "q3-call",
+      "date": "2026-09-30",
+      "published_at": "2026-09-30T16:30:00-04:00",
+      "timing": "after-close",
+      "title": "Synthetic Q3 call",
+      "source_id": "call",
+      "category": "earnings"
+    }
+  ],
+  "factors": [
+    {
+      "id": "margin",
+      "event_id": "q3-call",
+      "metric": "next-quarter margin",
+      "novelty": "unknown",
+      "evidence": [
+        {
+          "source_id": "call",
+          "locator": "Q&A, CFO, line 12",
+          "quote": "We expect lower margins next quarter."
+        }
+      ],
+      "expectation": {
+        "status": "unavailable",
+        "reason": "No dated pre-call estimate supplied"
+      },
+      "mechanism": "Lower margin could reduce earnings; market expectations are unknown.",
+      "confounders": [],
+      "confounder_review": "Price/news inputs not supplied; competing-event review incomplete.",
+      "grade": "insufficient_evidence",
+      "rationale": "Factor hypothesis only; no measured price driver.",
+      "falsifier": "A dated estimate already incorporating this outlook would refute novelty."
+    }
+  ]
+}

@@ -6,9 +6,11 @@ import json
 import math
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
+
+from forensics_core import eps_surprise_pct, event_window, export_events, price_on_or_before, validate_evidence
 
 import yfinance as yf
 from flask import Flask, request, jsonify, send_file
@@ -53,6 +55,45 @@ def valid_number(value):
         return math.isfinite(float(value))
     except (TypeError, ValueError):
         return False
+
+
+def build_earnings_events(frame, price_data, exchange_timezone=None):
+    """Use reported announcement dates, never the fiscal-quarter earnings_history index."""
+    events = []
+    if frame is None or frame.empty:
+        return events
+    for dt, row in frame.iterrows():
+        if not hasattr(dt, "strftime") or not valid_number(row.get("Reported EPS")):
+            continue  # Future estimated events are not historical observations.
+        if exchange_timezone and getattr(dt, "tzinfo", None) is not None:
+            dt = dt.tz_convert(exchange_timezone)
+        ds = dt.strftime("%Y-%m-%d")
+        px = find_price_on_date(price_data, ds)
+        if px is None:
+            continue
+        actual = float(row["Reported EPS"])
+        estimate = float(row["EPS Estimate"]) if valid_number(row.get("EPS Estimate")) else None
+        surprise = eps_surprise_pct(actual, estimate)
+        # Provider timestamps have not been verified against the issuer or exchange.
+        reaction = event_window(price_data, ds, "unknown")
+        one_day = reaction["returns"]["1"]
+        move = one_day["price_return_pct"]
+        estimate_text = f"{estimate:.2f}" if estimate is not None else "unavailable"
+        surprise_text = f"{surprise:+.1f}%" if surprise is not None else "unavailable"
+        events.append({
+            "date": ds, "cat": "earnings", "title": f"EPS: {actual:.2f} vs {estimate_text}e",
+            "px": px, "eps_actual": actual, "eps_estimate": estimate,
+            "eps_surprise_pct": surprise, "price_return_pct": move, "reaction": reaction,
+            "mv": f"{move:+.1f}% (date window, 1 session)" if move is not None else "",
+            "mvDir": "up" if move is not None and move > 0 else "down" if move is not None and move < 0 else "",
+            "timing": "unknown", "attribution_grade": "insufficient_evidence",
+            "published_at": dt.isoformat() if getattr(dt, "tzinfo", None) is not None else "unknown",
+            "data_period": "unknown", "consensus_as_of": "unavailable",
+            "source_url": "https://finance.yahoo.com/calendar/earnings?symbol={symbol}",
+            "desc": f"EPS surprise: {surprise_text}. Provider estimate has no verified historical cutoff. "
+                    "Price return is a descriptive date window; announcement time and attribution remain unverified.",
+        })
+    return events
 
 
 @app.route("/")
@@ -105,10 +146,20 @@ def search_ticker():
 @app.route("/api/generate", methods=["POST"])
 def generate_chart():
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "JSON object required"}), 400
     try:
         symbol = normalize_symbol(data.get("symbol"))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+
+    evidence = data.get("evidence")
+    if evidence is not None:
+        errors = validate_evidence(evidence)
+        if errors:
+            return jsonify({"error": "Invalid evidence", "details": errors}), 400
+        if evidence["ticker"].upper() != symbol:
+            return jsonify({"error": "Evidence ticker does not match requested symbol"}), 400
 
     try:
         t = yf.Ticker(symbol)
@@ -118,65 +169,48 @@ def generate_chart():
                            "HKD": "HK$", "CNY": "¥", "KRW": "₩"}.get(
             info.get("currency", "USD"), "$")
 
-        # Pull weekly OHLCV — max history
-        hist = t.history(period="max", interval="1wk")
+        # Daily adjusted bars preserve session alignment; never use weekly closes for reactions.
+        hist = t.history(period="max", interval="1d", auto_adjust=True)
         if hist.empty:
             return jsonify({"error": f"No price data for {symbol}"}), 404
 
         price_data = []
         for date, row in hist.iterrows():
+            if any(not valid_number(row[key]) or row[key] <= 0 for key in ("Open", "High", "Low", "Close")):
+                continue
             price_data.append({
                 "d": date.strftime("%Y-%m-%d"),
-                "o": round(row["Open"], 2),
-                "h": round(row["High"], 2),
-                "l": round(row["Low"], 2),
-                "c": round(row["Close"], 2),
+                "o": float(row["Open"]),
+                "h": float(row["High"]),
+                "l": float(row["Low"]),
+                "c": float(row["Close"]),
                 "v": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
             })
+        price_data.sort(key=lambda bar: bar["d"])
+        if not price_data:
+            return jsonify({"error": "No valid positive daily prices"}), 404
 
         # Gather events from yfinance data
         events = []
+        source_status = []
+        retrieved_at = datetime.now(timezone.utc).isoformat()
 
-        # Earnings dates from history
+        # Calendar announcement dates, not earnings_history's fiscal quarter-end index.
         try:
-            eh = t.earnings_history
-            if eh is not None and not eh.empty:
-                for _, row in eh.iterrows():
-                    dt = row.name if hasattr(row.name, 'strftime') else None
-                    if dt is None:
-                        continue
-                    ds = dt.strftime("%Y-%m-%d")
-                    eps_act = row.get("epsActual")
-                    eps_est = row.get("epsEstimate")
-                    surprise = row.get("epsSurprise")
-                    surprise_pct = row.get("epsSurprisePct")
-                    # Find price on that date
-                    px = find_price_on_date(price_data, ds)
-                    if px and valid_number(eps_act):
-                        has_estimate = valid_number(eps_est)
-                        has_surprise = valid_number(surprise)
-                        has_surprise_pct = valid_number(surprise_pct)
-                        sp = f"{float(surprise_pct)*100:+.1f}%" if has_surprise_pct else ""
-                        mv_dir = "up" if has_surprise_pct and float(surprise_pct) > 0 else "down" if has_surprise_pct and float(surprise_pct) < 0 else ""
-                        estimate_text = f"{float(eps_est):.2f}" if has_estimate else "N/A"
-                        surprise_text = f"{float(surprise):.2f}" if has_surprise else "N/A"
-                        events.append({
-                            "date": ds,
-                            "cat": "earnings",
-                            "title": f"EPS: {float(eps_act):.2f} vs {estimate_text}e" if has_estimate else f"EPS: {float(eps_act):.2f}",
-                            "px": px,
-                            "mv": sp,
-                            "mvDir": mv_dir,
-                            "desc": f"EPS actual: {float(eps_act):.2f}, estimate: {estimate_text}, surprise: {surprise_text} ({sp or 'N/A'})"
-                        })
-        except Exception:
-            pass
+            earnings = build_earnings_events(t.get_earnings_dates(limit=40), price_data, info.get("exchangeTimezoneName"))
+            for event in earnings:
+                event["source_url"] = event["source_url"].format(symbol=quote(symbol, safe=""))
+            events.extend(earnings)
+            source_status.append({"source": "earnings calendar", "status": "partial" if earnings else "unavailable",
+                                  "reason": "Provider dates only; historical consensus cutoff and issuer timing unverified"})
+        except Exception as exc:
+            source_status.append({"source": "earnings calendar", "status": "failed", "reason": type(exc).__name__})
 
         # Upgrades/downgrades
         try:
             ud = t.upgrades_downgrades
             if ud is not None and not ud.empty:
-                recent = ud.tail(20)
+                recent = ud.sort_index().tail(20)
                 for dt, row in recent.iterrows():
                     ds = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)[:10]
                     px = find_price_on_date(price_data, ds)
@@ -194,8 +228,9 @@ def generate_chart():
                             "mvDir": "",
                             "desc": f"{firm} {action.lower()} from {from_grade} to {grade}" if from_grade else f"{firm}: {grade}"
                         })
-        except Exception:
-            pass
+            source_status.append({"source": "analyst changes", "status": "available" if ud is not None and not ud.empty else "unavailable"})
+        except Exception as exc:
+            source_status.append({"source": "analyst changes", "status": "failed", "reason": type(exc).__name__})
 
         # Stock splits
         try:
@@ -214,8 +249,19 @@ def generate_chart():
                             "mvDir": "",
                             "desc": f"Stock split ratio: {ratio}"
                         })
-        except Exception:
-            pass
+            source_status.append({"source": "splits", "status": "available" if splits is not None and not splits.empty else "unavailable"})
+        except Exception as exc:
+            source_status.append({"source": "splits", "status": "failed", "reason": type(exc).__name__})
+
+        if evidence is not None:
+            events.extend(export_events(evidence, price_data))
+            source_status.append({"source": "supplied evidence", "status": "validated", "reason": "Structural checks only; sources need human/agent review"})
+
+        for event in events:
+            event.setdefault("retrieved_at", retrieved_at)
+            event.setdefault("timing", "unknown")
+            event.setdefault("attribution_grade", "insufficient_evidence")
+            event.setdefault("price_basis", "adjusted daily close on or before annotation date")
 
         # Sort events by date
         events.sort(key=lambda e: e["date"])
@@ -225,9 +271,9 @@ def generate_chart():
         first_px = price_data[0]["c"] if price_data else 1
 
         # TTM return
-        one_year_ago = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-        ttm_px = find_price_on_date(price_data, one_year_ago) or first_px
-        ttm_return = ((last_px / ttm_px) - 1) * 100 if ttm_px else 0
+        one_year_ago = (datetime.fromisoformat(price_data[-1]["d"]) - timedelta(days=365)).strftime("%Y-%m-%d")
+        ttm_px = find_price_on_date(price_data, one_year_ago)
+        ttm_return = ((last_px / ttm_px) - 1) * 100 if ttm_px else None
 
         # Count by category
         cat_counts = {}
@@ -244,6 +290,7 @@ def generate_chart():
             last_px=last_px,
             ttm_return=ttm_return,
             cat_counts=cat_counts,
+            source_status=source_status,
         )
 
         # Save
@@ -259,6 +306,11 @@ def generate_chart():
             "name": company_name,
             "events_count": len(events),
             "price_points": len(price_data),
+            "events": events,
+            "source_status": source_status,
+            "data_as_of": price_data[-1]["d"],
+            "adjustment_basis": "yfinance auto_adjust=True (split/dividend-adjusted OHLC)",
+            "retrieved_at": retrieved_at,
             "url": f"/chart/{quote(symbol, safe='')}",
         })
     except Exception as e:
@@ -269,7 +321,7 @@ def generate_chart():
 @app.route("/api/price/<symbol>")
 def live_price(symbol):
     """Live price data API — returns OHLCV for different ranges."""
-    range_key = request.args.get("range", "1Y")
+    range_key = request.args.get("range", "5Y")
     try:
         symbol = normalize_symbol(symbol)
     except ValueError as exc:
@@ -284,15 +336,17 @@ def live_price(symbol):
         "3M":  {"period": "3mo", "interval": "1d"},
         "6M":  {"period": "6mo", "interval": "1d"},
         "1Y":  {"period": "1y",  "interval": "1wk"},
+        "2Y":  {"period": "2y",  "interval": "1wk"},
         "3Y":  {"period": "3y",  "interval": "1wk"},
         "5Y":  {"period": "5y",  "interval": "1wk"},
+        "10Y": {"period": "10y", "interval": "1wk"},
         "ALL": {"period": "max", "interval": "1wk"},
     }
-    params = range_map.get(range_key, range_map["1Y"])
+    params = range_map.get(range_key, range_map["5Y"])
 
     try:
         t = yf.Ticker(symbol)
-        hist = t.history(period=params["period"], interval=params["interval"])
+        hist = t.history(period=params["period"], interval=params["interval"], auto_adjust=True)
         if hist.empty:
             return jsonify({"error": "No data"}), 404
 
@@ -330,16 +384,11 @@ def view_chart(symbol):
 
 
 def find_price_on_date(price_data, date_str):
-    """Find closest price to a given date."""
-    for p in price_data:
-        if p["d"] >= date_str:
-            return p["c"]
-    if price_data:
-        return price_data[-1]["c"]
-    return None
+    """Daily close on or before the date, without extrapolation beyond coverage."""
+    return price_on_or_before(price_data, date_str) if price_data else None
 
 
-def generate_html(symbol, company_name, currency_symbol, price_data, events, last_px, ttm_return, cat_counts):
+def generate_html(symbol, company_name, currency_symbol, price_data, events, last_px, ttm_return, cat_counts, source_status=None):
     """Generate the forensic chart HTML."""
     price_json = script_json(price_data)
     events_json = script_json(events)
@@ -347,6 +396,9 @@ def generate_html(symbol, company_name, currency_symbol, price_data, events, las
     safe_company_name = html.escape(str(company_name), quote=True)
     safe_currency_symbol = html.escape(str(currency_symbol), quote=True)
     today = datetime.now().strftime("%d-%b-%Y").upper()
+    ttm_text = f"{ttm_return:+.1f}%" if ttm_return is not None else "Unavailable"
+    ttm_class = "green" if ttm_return is not None and ttm_return >= 0 else "red" if ttm_return is not None else "amber"
+    coverage = html.escape("; ".join(f'{item["source"]}: {item["status"]}' + (f' ({item["reason"]})' if item.get("reason") else '') for item in (source_status or [])), quote=True)
 
     earnings_count = cat_counts.get("earnings", 0)
     sellside_count = cat_counts.get("sellside", 0)
@@ -589,16 +641,18 @@ def generate_html(symbol, company_name, currency_symbol, price_data, events, las
       <button class="range-btn" data-r="3M">3M</button>
       <button class="range-btn" data-r="6M">6M</button>
       <button class="range-btn" data-r="1Y">1Y</button>
+      <button class="range-btn" data-r="2Y">2Y</button>
       <button class="range-btn" data-r="3Y">3Y</button>
-      <button class="range-btn" data-r="5Y">5Y</button>
-      <button class="range-btn active" data-r="ALL">All</button>
+      <button class="range-btn active" data-r="5Y">5Y</button>
+      <button class="range-btn" data-r="10Y">10Y</button>
+      <button class="range-btn" data-r="ALL">All</button>
     </div>
   </div>
 
   <div class="layout">
     <div class="chart-wrap">
       <div class="chart-title">
-        <span>WEEKLY CLOSE · {currency_symbol}</span>
+        <span>DAILY ADJUSTED CLOSE · {currency_symbol}</span>
         <span id="evCount">{len(events)}</span> events mapped
       </div>
       <svg id="chart-svg" viewBox="0 0 1100 560" preserveAspectRatio="xMidYMid meet"></svg>
@@ -614,7 +668,7 @@ def generate_html(symbol, company_name, currency_symbol, price_data, events, las
   </div>
 
   <div class="note-bar">
-    Note: Events auto-populated from Yahoo Finance (earnings, upgrades, splits). For a complete forensic analysis, add scandal, narrative, and corporate events manually or via Claude.
+    Events are annotations, not established price drivers. EPS surprise and stock returns are separate. Daily date windows cannot isolate call remarks. Data through {price_data[-1]["d"]}.<br>{coverage}
   </div>
 
   <div class="summary">
@@ -625,8 +679,8 @@ def generate_html(symbol, company_name, currency_symbol, price_data, events, las
     </div>
     <div class="sum-cell">
       <div class="label">TTM Return</div>
-      <div class="val {'green' if ttm_return >= 0 else 'red'}">{ttm_return:+.0f}%</div>
-      <div class="note">Trailing 12-month</div>
+      <div class="val {ttm_class}">{ttm_text}</div>
+      <div class="note">Trailing 365 days from last data date; adjusted closes</div>
     </div>
     <div class="sum-cell">
       <div class="label">Earnings Events</div>
@@ -660,7 +714,7 @@ const SYMBOL = '{symbol}';
 const svg = document.getElementById('chart-svg');
 const W = 1100, H = 560;
 const M = {{ top: 30, right: 60, bottom: 50, left: 60 }};
-let currentRange = 'ALL';
+let currentRange = '5Y';
 let hiddenCats = new Set();
 let activeEventIdx = null;
 let liveData = null;  // holds fetched live data for non-ALL ranges
@@ -677,7 +731,7 @@ function parseDate(s) {{ return new Date(s.includes('T') ? s : s + 'T00:00:00');
 function filterByRange(data, range) {{
   if (range === 'ALL') return data;
   const last = parseDate(data[data.length - 1].d);
-  const years = {{ '1Y': 1, '3Y': 3, '5Y': 5 }}[range];
+  const years = {{ '1Y': 1, '2Y': 2, '3Y': 3, '5Y': 5, '10Y': 10 }}[range];
   if (!years) return data;
   const cutoff = new Date(last.getTime() - years * 365.25 * 86400000);
   return data.filter(p => parseDate(p.d) >= cutoff);
@@ -709,7 +763,7 @@ async function fetchLiveData(range) {{
 }}
 
 function render() {{
-  const useLocal = ['ALL', '1Y', '3Y', '5Y'].includes(currentRange);
+  const useLocal = ['ALL', '1Y', '2Y', '3Y', '5Y', '10Y'].includes(currentRange);
   const data = liveData && !useLocal ? liveData : filterByRange(priceData, currentRange);
   const visibleEvents = events
     .map((e, i) => ({{ ...e, idx: i }}))
@@ -722,13 +776,13 @@ function render() {{
   svg.innerHTML = '';
   let minP = Infinity, maxP = -Infinity;
   data.forEach(p => {{ minP = Math.min(minP, p.l); maxP = Math.max(maxP, p.h); }});
-  const padP = (maxP - minP) * 0.08;
+  const padP = Math.max((maxP - minP) * 0.08, maxP * 0.005, 0.01);
   minP = Math.max(0, minP - padP);
   maxP = maxP + padP;
 
   const startT = parseDate(data[0].d).getTime();
   const endT = parseDate(data[data.length - 1].d).getTime();
-  const xScale = t => M.left + ((t - startT) / (endT - startT)) * (W - M.left - M.right);
+  const xScale = t => M.left + ((t - startT) / Math.max(endT - startT, 1)) * (W - M.left - M.right);
   const yScale = p => M.top + ((maxP - p) / (maxP - minP)) * (H - M.top - M.bottom);
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -860,13 +914,14 @@ function renderEventList() {{
     el.dataset.cat = e.cat; el.dataset.idx = e.idx;
     const moveClass = e.mvDir === 'up' || e.mvDir === 'down' ? e.mvDir : '';
     const mvHtml = e.mv ? `<span class="mv ${{moveClass}}">${{escapeHtml(e.mv)}}</span>` : '';
+    const evidenceMeta = [e.timing, ...(e.grades || [e.attribution_grade || 'insufficient_evidence']), e.source_url_or_path || e.source_url || '', ...(e.evidence_locations || [])].filter(Boolean).map(escapeHtml).join(' · ');
     el.innerHTML = `
       <div class="ev-head">
         <span class="ev-date">${{String(e.idx + 1).padStart(2, '0')}} · ${{escapeHtml(e.date)}}</span>
         <span class="ev-px">{currency_symbol}${{e.px.toLocaleString()}}${{mvHtml}}</span>
       </div>
       <div class="ev-title">${{escapeHtml(e.title)}}</div>
-      <div class="ev-desc">${{escapeHtml(e.desc)}}</div>
+      <div class="ev-desc">${{escapeHtml(e.desc)}}<br>${{evidenceMeta}}</div>
     `;
     el.addEventListener('click', () => setActiveEvent(e.idx, false));
     listEl.appendChild(el);
@@ -908,7 +963,7 @@ document.querySelectorAll('.range-btn').forEach(btn => {{
     document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentRange = btn.dataset.r;
-    const useLocal = ['ALL', '1Y', '3Y', '5Y'].includes(currentRange);
+    const useLocal = ['ALL', '1Y', '2Y', '3Y', '5Y', '10Y'].includes(currentRange);
     if (useLocal) {{
       liveData = null;
       document.querySelector('.chart-title span').textContent = 'WEEKLY CLOSE · {currency_symbol}';

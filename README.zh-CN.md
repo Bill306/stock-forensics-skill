@@ -11,6 +11,7 @@
 ## 能做什么
 
 - 将重大股价波动与有日期、有来源的催化剂对应起来；
+- 用大盘和行业基准区分共同波动与公司新闻候选，并串联首次披露和后续更新；
 - 找出市场反复定价的一至两个核心指标；
 - 对比实际业绩、同期一致预期和业绩后股价反应；
 - 追踪多季度电话会中分析师问题与管理层语气的变化；
@@ -18,6 +19,23 @@
 - 区分公司披露、市场数据、分析推断和尚未解决的数据缺口。
 
 仓库附带一个可选的本地 Flask 应用，通过 `yfinance` 获取 Yahoo Finance 数据并生成基础图表。它只是便利工具，不能替代公司公告、交易所文件、业绩电话会及经过核验的原始来源。
+
+## 本地 v1.3.0 更新
+
+新增电话会证据与预期校验、四级归因、反例检查，以及公司新闻、宏观/行业新闻和首次披露时间线字段。收益工具支持同时对比多个命名基准，例如大盘 ETF 和行业 ETF。ETF 涨跌只反映价格背景；声称资金流入/流出需另有资金流数据。新闻、行业基准和资金流数据仍需人工检索并附来源，应用不会自动抓取新闻。这里的版本号表示本地工作副本，不表示 GitHub 已更新。
+
+电话会脚本校验分析者写出的 JSON，不自动转录、阅读电话会、核验原文真实性或判断股价驱动。
+
+```bash
+python3 scripts/transcript_forensics.py validate --input examples/transcript-only.json
+python3 scripts/transcript_forensics.py price-window --prices examples/daily-prices.json --benchmark examples/daily-benchmark.json --event-date 2026-09-30 --timing after-close
+python3 scripts/transcript_forensics.py price-window --prices examples/daily-prices.json --event-date 2026-09-30 --timing after-close --benchmark QQQ=examples/daily-benchmark.json --benchmark XLK=examples/daily-industry-benchmark.json
+python3 scripts/transcript_forensics.py export-events --input examples/transcript-only.json --prices examples/daily-prices.json
+```
+
+示例均为虚构数据；JSON 的 `--output` 拒绝覆盖已有文件。详见 [证据结构](references/evidence-schema.md)、[收益口径](references/event-windows.md)、[电话会流程](references/transcript-forensics.md) 和 [新闻与市场背景流程](references/news-and-market-context.md)。校验通过只表示结构与归因资格一致，不证明事实或因果关系成立。
+
+图表 API `/api/generate` 可以接收 `{"symbol":"TICKER","evidence":{...}}`，先验证证据并核对股票代码，再展示时间、归因等级和来源/引文位置。未经核验历史截点的供应商预期不能支持最高归因等级。
 
 ## 安装 Skill
 
@@ -31,16 +49,18 @@ git clone https://github.com/Bill306/stock-forensics-skill.git
 
 ## 使用
 
+如果请求没有指定分析期间，Skill 默认使用截至最近一个完整交易日的过去五年。用户可以指定其他年限或自定义起止日期。图表默认显示 5Y，并可切换至 1Y、2Y、3Y、10Y 或全部可用历史。
+
 调用示例：
 
 ```text
-使用 $forensics 分析 NVDA 过去三年的股价驱动因素。
+使用 $forensics 分析 NVDA 的股价驱动因素；如无特别指定，使用默认的过去五年区间。
 区分已核验催化剂与分析推断，找出核心指标，并引用原始来源。
 ```
 
 ## 输入与输出
 
-输入股票代码、研究区间和可用资料后，Skill 会引导 Agent 产出：
+输入股票代码、可选研究区间和可用资料后，Skill 会引导 Agent 产出：
 
 1. 聚焦重大波动的价格历史摘要；
 2. 业绩 Forensics 表格；
