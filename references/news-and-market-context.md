@@ -19,6 +19,8 @@ For each material move date and its event window, search a bounded window before
 - macro, policy, rates or market-wide news that plausibly affected the stock or benchmark;
 - sell-side changes as a separate opinion/positioning candidate, not company fact.
 
+Company-generated items count, including routine ones: earnings-date notices, prospectus supplements and share-sale eligibility, and company-published research or product announcements. When such an item coincides with a screened move but its exact publication time is unknown or its content is informational rather than new financial information, keep it as a `coincident_only` candidate with the caveat visible. Share-sale eligibility is not evidence that holders actually sold. Track census completeness explicitly — for example, "26 of 46 screened dates mapped to a sourced event; 20 remain unmatched" — so unexplained dates stay visible.
+
 Prefer the original filing, company release, exchange notice or news report. Capture a headline's URL, publisher, exact publication time and timezone when available, reporting period, retrieval date and the first public disclosure. Distinguish event time from the later publication time of a transcript or recap. If only the date is known, preserve that precision and leave the exact time unknown.
 
 Link follow-up events to their first public source. A preliminary update can make the same fact already known before the formal earnings release; a later release may add new figures or forward guidance. Grade novelty for each claim, not for the whole earnings date. Questions from analysts and claims repeated by secondary outlets are not independent confirmation.

@@ -27,6 +27,10 @@ The repository also includes an optional local Flask app that pulls Yahoo Financ
 
 The local upgrade adds transcript evidence/expectation checks, four attribution grades, counterexamples, explicit company/industry/news event types and first-disclosure links, plus 1/5/20-session comparison against multiple named benchmarks. The chart app uses daily adjusted closes and provider announcement dates instead of fiscal-quarter dates, keeps EPS surprise separate from price returns, and displays source gaps. News, industry benchmarks and actual fund-flow evidence still need to be researched and supplied separately; ETF returns are not flows. This local version adds a five-year default period and selectable chart windows. GitHub publication is a separate step.
 
+## Local v1.4.0 update
+
+The local upgrade extends the news/event census: company-generated items — including routine earnings-date notices, prospectus supplements or share-sale eligibility disclosures, and company-published product or research announcements — are candidate events when they coincide with screened moves. They are graded conservatively (at most `coincident_only` when timing or content evidence is thin), disclosure and market-reaction dates are recorded separately, share-sale eligibility is not treated as evidence of selling, and census completeness is reported as mapped versus unmatched screened dates. It also documents the self-contained interactive HTML explorer pattern: clickable event markers with a detail panel, a documented/unexplained event filter, a default five-year view with selectable ranges, benchmark-relative returns labeled in %, base64-embedded assets for offline viewing, and a qualitative sell-side question-focus migration section built only from available transcripts with coverage disclosed. GitHub publication is a separate step.
+
 The transcript helper validates analyst-authored JSON; it does not transcribe media, read calls, verify source truth or automatically identify price drivers.
 
 ```bash
