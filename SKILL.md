@@ -3,7 +3,7 @@ name: forensics
 description: Investigate historical stock-price drivers, earnings reactions, or information revealed in a call/transcript. Use when the user asks why a stock moved, which metrics were priced, or whether a disclosure contributed to a move. Supports evidence-led attribution and falsifiable current debates.
 metadata:
   author: Bill306
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Forensics — Know the Stock
