@@ -10,11 +10,12 @@ Price charts show when a stock moved, but not which expectations changed or whic
 
 ## What it does
 
-Stock Forensics starts from major price moves and works backward to the evidence. It helps an agent:
+Stock Forensics researches both from price moves to news and from material company developments to price reactions, including quiet events. It helps an agent:
 
 - map material price swings to dated catalysts;
 - separate broad-market and industry moves from company-specific news candidates;
 - preserve news timestamps and link later updates to earlier disclosures;
+- investigate product plans, business actions and public reaction beyond earnings, separating sentiment, operating impact and price attribution;
 - identify the one or two operating metrics investors repeatedly price;
 - compare reported results with contemporaneous expectations;
 - trace how analyst questions and management tone evolved across earnings calls;
@@ -23,11 +24,15 @@ Stock Forensics starts from major price moves and works backward to the evidence
 
 The repository also includes an optional local Flask app that pulls Yahoo Finance data through `yfinance` and generates a basic chart. That app is a convenience layer, not a substitute for original filings, exchange notices, earnings calls, or source-checked research.
 
-## Local v1.3.0 update
+## v1.5.0 — Company news beyond earnings
+
+The research workflow now requires both price-to-news and news-to-price passes for a full review. It covers product previews and launches, pricing, customer/partner changes, operations, public controversies and company responses. Timelines distinguish plans, testing, rollout, public feedback and later operating evidence; quiet events and conflicting reactions remain visible. Reports assess public reaction, operating impact and stock-price contribution separately, with explicit source and sampling limits. Interactive reports can expose these story stages and evidence alongside the price chart. These are agent research/reporting instructions; the bundled app still does not automatically collect news or sentiment. See the [company-news workflow](references/news-and-market-context.md).
+
+## v1.3.0 update
 
 The local upgrade adds transcript evidence/expectation checks, four attribution grades, counterexamples, explicit company/industry/news event types and first-disclosure links, plus 1/5/20-session comparison against multiple named benchmarks. The chart app uses daily adjusted closes and provider announcement dates instead of fiscal-quarter dates, keeps EPS surprise separate from price returns, and displays source gaps. News, industry benchmarks and actual fund-flow evidence still need to be researched and supplied separately; ETF returns are not flows. This local version adds a five-year default period and selectable chart windows. GitHub publication is a separate step.
 
-## Local v1.4.0 update
+## v1.4.0 update
 
 The local upgrade extends the news/event census: company-generated items — including routine earnings-date notices, prospectus supplements or share-sale eligibility disclosures, and company-published product or research announcements — are candidate events when they coincide with screened moves. They are graded conservatively (at most `coincident_only` when timing or content evidence is thin), disclosure and market-reaction dates are recorded separately, share-sale eligibility is not treated as evidence of selling, and census completeness is reported as mapped versus unmatched screened dates. It also documents the self-contained interactive HTML explorer pattern: clickable event markers with a detail panel, a documented/unexplained event filter, a default five-year view with selectable ranges, benchmark-relative returns labeled in %, base64-embedded assets for offline viewing, and a qualitative sell-side question-focus migration section built only from available transcripts with coverage disclosed. GitHub publication is a separate step.
 
