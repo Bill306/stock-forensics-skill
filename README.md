@@ -24,6 +24,10 @@ Stock Forensics researches both from price moves to news and from material compa
 
 The repository also includes an optional local Flask app that pulls Yahoo Finance data through `yfinance` and generates a basic chart. That app is a convenience layer, not a substitute for original filings, exchange notices, earnings calls, or source-checked research.
 
+## v1.6.0 — A-share research and price-quality checks
+
+Adds an [A-share research reference](references/a-share-research.md): distinguish forecasts, preliminary results, formal filings and actual publication times; derive additive standalone-quarter metrics with reconciliation, but never subtract cumulative EPS; compare institutional/investor question themes without inventing named sell-side speakers. Price review now covers provider seams, missing sessions, dividends, bonus shares and ETF unit splits before move screening. News search audits distinguish unsearched dates, no reliable candidates and unresolved attribution. Generated explorers use verified official logos and require interaction checks. These are research/reporting instructions; this update does not add automatic news collection or corporate-action repair to the optional app.
+
 ## v1.5.0 — Company news beyond earnings
 
 The research workflow now requires both price-to-news and news-to-price passes for a full review. It covers product previews and launches, pricing, customer/partner changes, operations, public controversies and company responses. Timelines distinguish plans, testing, rollout, public feedback and later operating evidence; quiet events and conflicting reactions remain visible. Reports assess public reaction, operating impact and stock-price contribution separately, with explicit source and sampling limits. Interactive reports can expose these story stages and evidence alongside the price chart. These are agent research/reporting instructions; the bundled app still does not automatically collect news or sentiment. See the [company-news workflow](references/news-and-market-context.md).

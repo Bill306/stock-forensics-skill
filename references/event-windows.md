@@ -29,6 +29,16 @@ An ETF's return is a market/industry price benchmark, not evidence of fund creat
 
 Trailing-year return uses the last data date rather than today's clock; insufficient baseline history is unavailable. State whether the series is price-only or split/dividend-adjusted. An adjusted historical close is not an executable historical price.
 
+## Validate prices before screening
+
+Preserve raw closes and provider metadata alongside the return series. Check missing exchange sessions, duplicate dates, unit/currency changes and abrupt seams between requested date chunks. Inspect outliers against contemporaneous raw prices, official corporate-action notices and an independent provider where practical. Do not accept a provider's "adjusted" label as proof of a consistent convention, and do not forward-fill missing sessions to manufacture event windows. Exchange price limits can flag anomalies, but listing days, corporate actions and rule exceptions require separate review.
+
+Verify stock splits/bonus shares, dividends and **ETF unit splits**. Distinguish record date, ex-date and first trading session on the adjusted basis. Apply cash and share changes once, on the correct basis; never apply a future announced dividend before its effective date. Additively adjusted historical prices may produce distorted percentage returns even when a chart looks continuous.
+
+If reconstructing a gross total-return series from verified raw data, for a simple cash distribution and share split on the same ex-date, the one-session gross factor is `(new shares per old share × ex-date raw close + cash per old share) / prior raw close`. Chain the factors, assuming reinvestment at the ex-date close, and state tax/fee exclusions. Confirm whether dividend amounts have already been restated per post-split share. Rights issues, spin-offs and other complex actions need their own verified treatment; leave affected returns unavailable if that treatment is unresolved. A synthetic split with unchanged economic value should not generate a large return.
+
+A total-return index may be scaled to the latest raw close for display, but label it as an adjusted/reinvestment series, not historical executable prices. Keep raw quotes separately visible. Use matching return conventions for the stock and benchmarks, and disclose ETF self-inclusion and changing constituent weights where relevant. The bundled helpers accept prepared closes; they do not audit or reconstruct corporate actions automatically.
+
 ## Analysis-period selection
 
 Use the user's exact dates or requested lookback when provided. Otherwise default to the five years ending on the most recent completed exchange session. Report the actual first and last sessions because weekends, holidays, listing dates and provider coverage can shift the calendar boundary. Keep the preceding common session close as the baseline for an in-window first-day return, but do not count that baseline session as part of the requested window. Use the same window for the stock, benchmarks, move screen and news census. The latest 6–8 earnings may form a separately labeled fundamental sample within the wider price window.

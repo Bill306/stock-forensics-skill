@@ -69,6 +69,12 @@ For each move, record the candidate headline/event, the benchmark context, the c
 
 Include quiet dates and earnings events as controls. Record search scope and source failures so “no news found” does not read as “no news existed.” Do not require an RSS/API integration: use the available browser, exchange/regulatory sources and reputable publishers, then preserve links and timestamps in the evidence record.
 
+## Keep a search audit
+
+For each screened date retain the searched pre/post window, actual queries or channels, retrieved candidate links, access failures and review status. Distinguish **not yet searched**, **searched with no reliable candidate**, and **candidate located but attribution unresolved**. A price-only recap can corroborate a move without supplying a catalyst. A later article can support chronology but cannot establish that its explanation was known earlier.
+
+Report screened dates, dates with a sourced candidate, dates with plausible/supported attribution, and independently reviewed company-news events as separate counts. Multiple stories on one day do not increase date coverage. Do not mark all grey/unmatched dates as searched unless the search log supports it.
+
 ## Structured fields
 
 Use `event_type` to distinguish `company_news`, `company_disclosure`, `industry_news`, `macro_news`, `sellside`, and separately sourced `fund_flow`. Use `first_disclosure_event_id` and `supersedes_event_ids` for information chronology. Keep chart `category` compatible with existing chart consumers. Store each broad-market and industry benchmark in `benchmark_comparisons` with its symbol, role, stock-price source, benchmark-price source and matching event-window returns. Read [evidence-schema.md](evidence-schema.md) for validation details.

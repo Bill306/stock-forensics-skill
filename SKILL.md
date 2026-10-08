@@ -3,7 +3,7 @@ name: forensics
 description: Investigate historical stock-price drivers, earnings reactions, or information revealed in a call/transcript. Use when the user asks why a stock moved, which metrics were priced, or whether a disclosure contributed to a move. Supports evidence-led attribution and falsifiable current debates.
 metadata:
   author: Bill306
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Forensics — Know the Stock
@@ -29,6 +29,8 @@ Honor a user-specified lookback or exact start/end dates. If none are given, use
 Prefer company, exchange and regulator disclosures for facts. Read full original news and source sell-side data, separating estimates, channel-check claims and opinions. Ratings/targets can themselves be candidate events; they are not proof of value or causation. yfinance is an unofficial data adapter.
 
 Record each source's URL/local path, publication time, data/reporting period, retrieval date and evidence locator. Separate reporting-period end, announcement and call times. Use the exchange timezone and actual sessions. Preserve currency, price-adjustment basis, EPS/accounting basis, metric units and historical consensus cutoff. Missing fields stay explicit; never substitute today's estimates for historical expectations.
+
+For A-share research, read [references/a-share-research.md](references/a-share-research.md) for local disclosures, standalone-quarter accounting and investor-question comparisons. For any market, validate corporate actions and price-provider seams before screening moves; see [references/event-windows.md](references/event-windows.md).
 
 ## Investigation
 
@@ -67,9 +69,11 @@ Keep supplied/private documents outside public Skill files. CLI output creates n
 
 ## Chart and optional app
 
-Expose sources/locators, timing, uncertainty and labeled return windows in chart annotations. Keep unresolved moves. Verify actual interactions before describing a chart as verified. Compare raw and benchmark returns on matching endpoints and adjustment conventions.
+Expose sources/locators, timing, uncertainty and labeled return windows in chart annotations. Keep unresolved moves. Use a company logo from a verified official source when available, recording its URL and retrieval date. Check its contrast on the chosen background; embed the original asset for offline use and use a labeled text fallback if unavailable. Verify actual interactions before describing a chart as verified. Compare raw and benchmark returns on matching endpoints and adjustment conventions.
 
-When an interactive HTML explorer is requested, build a single self-contained file. Embed price and event JSON in the page; make each event marker clickable, with a detail panel showing disclosure date, market-reaction date, timing, benchmark-relative returns, source link and attribution grade; include an event list with a documented/unexplained filter; default to the five-year view with selectable 1/2/3-year, all-history and custom-date ranges; label benchmark-relative returns with % (not "pp") when the user prefers percent notation; embed images such as company logos as base64 data URIs so the file works offline over file://. When transcript coverage exists, add a sell-side question-focus migration section: for each available quarter, summarize the marginal change in analyst question themes qualitatively, disclose which quarters are covered, and never present theme summaries as frequency statistics.
+When an interactive HTML explorer is requested, build a single self-contained file. Embed price and event JSON in the page; make each event marker clickable, with a detail panel showing disclosure date, market-reaction date, timing, benchmark-relative returns, source link and attribution grade; include an event list with a documented/unexplained filter; default to the five-year view with selectable 1/2/3-year, all-history and custom-date ranges; label benchmark-relative returns with % (not "pp") when the user prefers percent notation; embed images such as company logos as base64 data URIs so the file works offline over file://. When transcript coverage exists, add a question-focus migration section, labeled sell-side only when the source supports that participant identity: for each available quarter, summarize the marginal change in analyst question themes qualitatively, disclose which quarters are covered, and never present theme summaries as frequency statistics.
+
+For generated explorers, test marker-to-detail selection, date/range and benchmark changes, news filters, question expansion and earnings links. Related-event navigation must reveal an event hidden by the current filters. Check empty results, invalid dates, unavailable windows, visible logos and console errors. Offer only ranges actually supported by downloaded data, or label a separate retrieval action.
 
 For a full company-news review, add a product/business-actions/public-reaction timeline when evidence is available, including material events below the move threshold. Let users filter themes and click through to facts, proposed operating mechanisms, evidence limits, sources and comparable return windows. Link previews, rollouts, public responses and later operating disclosures; clearly label later evidence as hindsight. Do not imply these research annotations are collected or rendered automatically by the bundled app.
 
