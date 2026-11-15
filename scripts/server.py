@@ -1023,7 +1023,7 @@ SEARCH_HTML = '''<!DOCTYPE html>
     display: flex; gap: 8px; margin-bottom: 16px;
   }
   .search-box input {
-    flex: 1; padding: 16px 24px; background: var(--bg-panel);
+    flex: 1; min-width: 0; padding: 16px 24px; background: var(--bg-panel);
     border: 1px solid var(--rule-hi); border-radius: 4px;
     color: var(--ink); font-size: 18px; font-family: 'Inter', sans-serif;
     outline: none; transition: border 0.2s;

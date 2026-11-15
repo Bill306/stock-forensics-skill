@@ -4,6 +4,8 @@
 
 A price chart is the beginning of a question. Follow it back to the evidence.
 
+![The optional local stock-search application](docs/images/preview.png)
+
 ```mermaid
 flowchart LR
   A[Price moves and company events] --> B[Dated original sources]
