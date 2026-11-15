@@ -1,5 +1,7 @@
 # 股票 Forensics Skill
 
+股价曲线是问题的开始。继续沿着它寻找证据。
+
 这是一个研究股票历史驱动因素的 Agent Skill：既从股价波动追溯新闻，也从重要公司事件反查价格，连接当时的市场预期和核心经营指标。
 
 [English README](README.md)

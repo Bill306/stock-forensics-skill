@@ -1,5 +1,17 @@
 # Stock Forensics Skill
 
+**English** · [简体中文](README.zh-CN.md)
+
+A price chart is the beginning of a question. Follow it back to the evidence.
+
+```mermaid
+flowchart LR
+  A[Price moves and company events] --> B[Dated original sources]
+  B --> C[Expectations and operating metrics]
+  C --> D[Evidence grades and gaps]
+  D --> E[Research report and optional chart]
+```
+
 An Agent Skill for reverse-engineering the events, expectations, and operating metrics that historically moved a public company's stock price.
 
 [中文说明](README.zh-CN.md)
